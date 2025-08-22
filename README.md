@@ -244,7 +244,7 @@ We welcome contributions! Here's how you can help:
 
 <div align="center">
 
-This project is licensed under the **MIT License**
+This project is licensed under the **GNU v3 License**
 
 [![License: GNU](https://img.shields.io/badge/License-GNU_V3-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
