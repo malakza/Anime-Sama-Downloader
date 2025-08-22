@@ -148,6 +148,7 @@ https://anime-sama.fr/  # Just homepage
 | 📹 **SendVid** | ![Working](https://img.shields.io/badge/Status-✅_Working-brightgreen) | 🔄 Good | Primary recommended source |
 | 🎬 **Sibnet** | ![Working](https://img.shields.io/badge/Status-✅_Working-brightgreen) | 🔄 Good | Reliable backup source |
 | 🚫 **Vidmoly** | ![Deprecated](https://img.shields.io/badge/Status-❌_Deprecated-red) | ❌ None | No longer supported, domain changed. |
+| 🚫 **MYVI** | ![Deprecated](https://img.shields.io/badge/Status-❌_Deprecated-red) | ❌ None | Scam website, only redirect to advertisement. |
 | 📱 **VK.com** | ![Deprecated](https://img.shields.io/badge/Status-❌_Deprecated-red) | ❌ None | Could try, but did not find any working URL. |
 
 </div>
