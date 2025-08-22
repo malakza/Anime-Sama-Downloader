@@ -1,11 +1,17 @@
+
 import requests
 import re
 import os
 import sys
-from tqdm         import    tqdm
-from bs4          import    BeautifulSoup
-from urllib.parse import    urlparse
+from tqdm import tqdm
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 import time
+try:
+    from moviepy.editor import VideoFileClip
+except ImportError:
+    print("Warning: moviepy is not installed. Install it using 'pip install moviepy' for .mp4 conversion.")
+    VideoFileClip = None
 
 class Colors:
     HEADER = '\033[95m'
@@ -23,7 +29,7 @@ def print_header():
 {Colors.HEADER}{Colors.BOLD}
 ╔══════════════════════════════════════════════════════════════╗
 ║                 ANIME-SAMA VIDEO DOWNLOADER                  ║
-║                       Enhanced CLI v2.0                      ║
+║                       Enhanced CLI v2.3                      ║
 ╚══════════════════════════════════════════════════════════════╝
 {Colors.ENDC}
 {Colors.OKCYAN}📺 Download anime episodes from anime-sama.fr easily!{Colors.ENDC}
@@ -55,10 +61,9 @@ def print_tutorial():
 ├─ ⚡ Program will automatically fetch available episodes
 └─ 🎮 Follow the interactive prompts
 
-{Colors.WARNING}{Colors.BOLD}📌 IMPORTANT NOTES:{Colors.ENDC}*
-├─ 🔗 URL that will be given for download may not work, follow this.
-├─ ✅ Only sendvid.com and video.sibnet.ru sources work
-├─ ❌ vidmoly.to and vk.com sources are deprecated
+{Colors.WARNING}{Colors.BOLD}📌 IMPORTANT NOTES:{Colors.ENDC}
+├─ ✅ Supported sources: sendvid.com, video.sibnet.ru, oneupload.net/.to, vidmoly.net/.to
+├─ ❌ Other sources are not supported (see GitHub for details)
 ├─ 🔗 URL must be the complete path including season/language
 └─ 📁 Videos save to ./videos/ by default (customizable)
 
@@ -100,7 +105,11 @@ def fetch_page_content(url):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-        'Referer': 'https://sendvid.com/' if 'sendvid.com' in url else 'https://video.sibnet.ru/'
+        'Referer': 'https://sendvid.com/' if 'sendvid.com' in url else 
+                  'https://video.sibnet.ru/' if 'video.sibnet.ru' in url else 
+                  'https://oneupload.net/' if 'oneupload.net' in url else
+                  'https://vidmoly.net/' if 'vidmoly.net' in url else
+                  'https://oneupload.net/'
     }
     try:
         print_status("Connecting to server...", "loading")
@@ -139,6 +148,84 @@ def extract_sibnet_video_source(html_content):
     print_status("Could not extract video source from Sibnet", "warning")
     return None
 
+def extract_oneupload_video_source(html_content):
+    if not html_content:
+        return None
+    soup = BeautifulSoup(html_content, 'html.parser')
+    script_tags = soup.find_all('script', type='text/javascript')
+    for script in script_tags:
+        if script.string and 'jwplayer' in script.string:
+            url_match = re.search(r'file:"(https?://.*?)"', script.string)
+            if url_match:
+                m3u8_url = url_match.group(1)
+                return m3u8_url
+    print_status("Could not extract video source from OneUpload", "warning")
+    return None
+
+def extract_vidmoly_video_source(html_content):
+    if not html_content:
+        return None
+    soup = BeautifulSoup(html_content, 'html.parser')
+    script_tags = soup.find_all('script', type='text/javascript')
+    for script in script_tags:
+        if script.string and 'jwplayer' in script.string:
+            url_match = re.search(r'file:"(https?://.*?)"', script.string)
+            if url_match:
+                m3u8_url = url_match.group(1)
+                return m3u8_url
+    print_status("Could not extract video source from Vidmoly", "warning")
+    return None
+
+def parse_m3u8_content(m3u8_content):
+    streams = []
+    lines = m3u8_content.splitlines()
+    current_stream = None
+
+    for line in lines:
+        line = line.strip()
+        if line.startswith('#EXT-X-STREAM-INF'):
+            stream_info = {}
+            attributes = re.findall(r'(\w+)=([^,]+)', line)
+            for key, value in attributes:
+                stream_info[key] = value.strip('"')
+            current_stream = stream_info
+        elif line.startswith('http') and current_stream:
+            current_stream['url'] = line
+            streams.append(current_stream)
+            current_stream = None
+    return streams
+
+def parse_ts_segments(m3u8_content):
+    segments = []
+    lines = m3u8_content.splitlines()
+    encryption_detected = False
+
+    for line in lines:
+        line = line.strip()
+        if re.match(r'^https?://.*\.ts(\?.*)?$', line):
+            segments.append(line)
+        elif line.startswith('#EXT-X-KEY'):
+            encryption_detected = True
+
+    if encryption_detected:
+        print_status("M3U8 contains encryption (#EXT-X-KEY). Decryption is not supported.", "warning")
+    return segments
+
+def convert_ts_to_mp4(ts_file, mp4_file):
+    if VideoFileClip is None:
+        print_status("moviepy is not installed. Cannot convert to .mp4. Install it using 'pip install moviepy'.", "error")
+        return False
+    try:
+        print_status(f"Converting {ts_file} to {mp4_file}... This may take some time.", "loading")
+        video = VideoFileClip(ts_file)
+        video.write_videofile(mp4_file, codec="libx264", audio_codec="aac")
+        video.close()
+        print_status(f"Successfully converted to {mp4_file}", "success")
+        return True
+    except Exception as e:
+        print_status(f"Error converting to .mp4: {str(e)}", "error")
+        return False
+
 def get_sibnet_redirect_location(video_url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
@@ -161,6 +248,11 @@ def get_sibnet_redirect_location(video_url):
 
 def fetch_video_source(url):
     print_status(f"Processing video URL: {url[:50]}...", "loading")
+    
+    if 'vidmoly.to' in url:
+        url = url.replace('vidmoly.to', 'vidmoly.net')
+        print_status("Converted vidmoly.to to vidmoly.net", "info")
+    
     html_content = fetch_page_content(url)
     if not html_content:
         return None
@@ -171,11 +263,49 @@ def fetch_video_source(url):
         video_source = extract_sibnet_video_source(html_content)
         if video_source:
             print_status("Getting direct download link...", "loading")
-            redirect_location = get_sibnet_redirect_location(video_source)
-            return redirect_location
+            return get_sibnet_redirect_location(video_source)
         return None
+    elif 'oneupload.net' in url or 'oneupload.to' in url:
+        url = url.replace('oneupload.to', 'oneupload.net')
+        m3u8_url = extract_oneupload_video_source(html_content)
+        if not m3u8_url:
+            return None
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
+                'Referer': 'https://oneupload.net/'
+            }
+            response = requests.get(m3u8_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            streams = parse_m3u8_content(response.text)
+            if not streams:
+                print_status("No video streams found in M3U8 playlist", "error")
+                return None
+            return max(streams, key=lambda x: int(x.get('BANDWIDTH', 0)))['url']
+        except requests.RequestException as e:
+            print_status(f"Failed to fetch M3U8 playlist: {str(e)}", "error")
+            return None
+    elif 'vidmoly.net' in url:
+        m3u8_url = extract_vidmoly_video_source(html_content)
+        if not m3u8_url:
+            return None
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
+                'Referer': 'https://vidmoly.net/'
+            }
+            response = requests.get(m3u8_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            streams = parse_m3u8_content(response.text)
+            if not streams:
+                print_status("No video streams found in M3U8 playlist", "error")
+                return None
+            return max(streams, key=lambda x: int(x.get('BANDWIDTH', 0)))['url']
+        except requests.RequestException as e:
+            print_status(f"Failed to fetch M3U8 playlist: {str(e)}", "error")
+            return None
     else:
-        print_status("Unsupported video source. Only sendvid.com and video.sibnet.ru are supported.", "error")
+        print_status("Unsupported video source. Only sendvid.com, video.sibnet.ru, oneupload.net, and vidmoly.net are supported.", "error")
         return None
 
 def download_video(video_url, save_path):
@@ -184,36 +314,67 @@ def download_video(video_url, save_path):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
         'Accept': 'video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-        'Referer': 'https://sendvid.com/' if 'sendvid' in video_url else 'https://video.sibnet.ru/'
+        'Referer': 'https://vidmoly.net/' if 'vidmoly.net' in video_url else
+                  'https://oneupload.net/' if 'oneupload.net' in video_url else 
+                  'https://sendvid.com/' if 'sendvid.com' in video_url else 
+                  'https://video.sibnet.ru/'
     }
     try:
-        response = requests.get(video_url, stream=True, headers=headers, timeout=30)
-        total_size = int(response.headers.get('content-length', 0))
-        
-        if response.status_code != 200:
-            print_status(f"Download failed with status code: {response.status_code}", "error")
-            return False
-        
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        
-        with open(save_path, 'wb') as f:
-            with tqdm(
-                total=total_size, 
-                unit='B', 
-                unit_scale=True, 
-                desc=f"📥 {os.path.basename(save_path)}",
-                bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
-            ) as pbar:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(len(chunk))
-        
-        print_status(f"Download completed successfully!", "success")
-        return True
+        if 'm3u8' in video_url:
+            response = requests.get(video_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            segments = parse_ts_segments(response.text)
+            if not segments:
+                print_status("No .ts segments found in M3U8 playlist", "error")
+                return False, None
+            
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            temp_ts_path = save_path.replace('.mp4', '.ts')
+            random_string = os.path.basename(save_path).replace('.mp4', '.ts')
+            with open(temp_ts_path, 'wb') as f:
+                for i, segment_url in enumerate(tqdm(segments, desc=f"📥 {random_string}", unit="segment")):
+                    for attempt in range(3):
+                        try:
+                            seg_response = requests.get(segment_url, headers=headers, stream=True, timeout=10)
+                            seg_response.raise_for_status()
+                            f.write(seg_response.content)
+                            break
+                        except requests.RequestException as e:
+                            if attempt < 2:
+                                time.sleep(2)
+                            else:
+                                print_status(f"Failed to download segment {i+1}: {str(e)}", "error")
+                                return False, None
+            print_status(f"Combined {len(segments)} segments into {temp_ts_path}", "success")
+            return True, temp_ts_path
+        else:
+            response = requests.get(video_url, stream=True, headers=headers, timeout=30)
+            total_size = int(response.headers.get('content-length', 0))
+            
+            if response.status_code != 200:
+                print_status(f"Download failed with status code: {response.status_code}", "error")
+                return False, None
+            
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            
+            with open(save_path, 'wb') as f:
+                with tqdm(
+                    total=total_size, 
+                    unit='B', 
+                    unit_scale=True, 
+                    desc=f"📥 {os.path.basename(save_path)}",
+                    bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]'
+                ) as pbar:
+                    for chunk in response.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            f.write(chunk)
+                            pbar.update(len(chunk))
+            
+            print_status(f"Download completed successfully!", "success")
+            return True, save_path
     except Exception as e:
         print_status(f"Download failed: {str(e)}", "error")
-        return False
+        return False, None
 
 def fetch_episodes(base_url):
     js_url = base_url.rstrip('/') + '/episodes.js'
@@ -253,14 +414,18 @@ def print_episodes(episodes):
         print_separator("─", 40)
         
         for i, url in enumerate(urls, start=1):
-            if 'vidmoly.to' in url or "vk.com" in url:
+            if "vk.com" in url or "myvi.tv" in url:
                 print(f"{Colors.FAIL}  {i:2d}. Episode {i} - {url[:60]}... ❌ DEPRECATED{Colors.ENDC}")
             elif 'sendvid.com' in url:
                 print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - SendVid ✅{Colors.ENDC}")
             elif 'video.sibnet.ru' in url:
                 print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - Sibnet ✅{Colors.ENDC}")
+            elif 'oneupload.net' in url or 'oneupload.to' in url:
+                print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - OneUpload ✅{Colors.ENDC}")
+            elif 'vidmoly.net' in url or 'vidmoly.to' in url:
+                print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - Vidmoly ✅{Colors.ENDC}")
             else:
-                print(f"{Colors.WARNING}  {i:2d}. Episode {i} - Unknown source ⚠️{Colors.ENDC}")
+                print(f"{Colors.WARNING}  {i:2d}. Episode {i} - Unknown source ⚠️ {Colors.ENDC} {url[:60]}...")
 
 def get_player_choice(episodes):
     print(f"\n{Colors.BOLD}{Colors.HEADER}🎮 SELECT PLAYER{Colors.ENDC}")
@@ -269,7 +434,7 @@ def get_player_choice(episodes):
     available_players = list(episodes.keys())
     for i, player in enumerate(available_players, 1):
         working_episodes = sum(1 for url in episodes[player] 
-                             if 'sendvid.com' in url or 'video.sibnet.ru' in url)
+                             if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' in url or 'vidmoly.net' in url or 'vidmoly.to' in url)
         total_episodes = len(episodes[player])
         print(f"{Colors.OKCYAN}  {i}. {player} ({working_episodes}/{total_episodes} working episodes){Colors.ENDC}")
     
@@ -312,9 +477,16 @@ def get_episode_choice(episodes, player_choice):
     working_episodes = []
     
     for i, url in enumerate(episodes[player_choice], 1):
-        if 'sendvid.com' in url or 'video.sibnet.ru' in url:
+        if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' in url or 'oneupload.to' in url or 'vidmoly.net' in url or 'vidmoly.to' in url:
             working_episodes.append(i)
-            source_type = "SendVid" if 'sendvid.com' in url else "Sibnet"
+            if 'sendvid.com' in url:
+                source_type = "SendVid"
+            elif 'video.sibnet.ru' in url:
+                source_type = "Sibnet"
+            elif 'oneupload.net' in url or 'oneupload.to' in url:
+                source_type = "OneUpload"
+            elif 'vidmoly.net' in url or 'vidmoly.to' in url:
+                source_type = "Vidmoly"
             print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - {source_type} ✅{Colors.ENDC}")
         else:
             print(f"{Colors.FAIL}  {i:2d}. Episode {i} - Deprecated ❌{Colors.ENDC}")
@@ -332,7 +504,7 @@ def get_episode_choice(episodes, player_choice):
             
             if 1 <= episode_num <= num_episodes:
                 episode_url = episodes[player_choice][episode_num - 1]
-                if 'vidmoly.to' in episode_url or 'vk.com' in episode_url:
+                if 'vk.com' in episode_url or 'myvi.tv' in episode_url:
                     print_status("This episode source is deprecated and cannot be downloaded", "error")
                     continue
                 return episode_num - 1
@@ -445,14 +617,37 @@ def main():
         print(f"\n{Colors.BOLD}{Colors.HEADER}⬇️ DOWNLOADING{Colors.ENDC}")
         print_separator()
         
-        if download_video(video_source, save_path):
-            print_separator()
-            print_status(f"Video successfully saved to: {save_path}", "success")
-            print_status("Download complete! Enjoy watching! 🎉", "success")
-        else:
+        success, output_path = download_video(video_source, save_path)
+        if not success:
             print_status(f"Failed to download episode {episode_num}", "error")
             return 1
         
+        print_separator()
+        
+        if 'm3u8' in video_source and output_path.endswith('.ts'):
+            print_status(f"Video saved as {output_path} (MPEG-TS format, playable in VLC or similar players)", "success")
+            if VideoFileClip:
+                convert = input(f"{Colors.BOLD}Convert to .mp4 format? This may take some time (y/n, default: n): {Colors.ENDC}").strip().lower()
+                if convert in ['y', 'yes', '1']:
+                    if convert_ts_to_mp4(output_path, save_path):
+                        print_status(f"Video successfully saved to: {save_path}", "success")
+                        try:
+                            os.remove(output_path)
+                            print_status(f"Removed temporary .ts file: {output_path}", "info")
+                        except Exception as e:
+                            print_status(f"Could not remove temporary .ts file: {str(e)}", "warning")
+                    else:
+                        print_status(f"Conversion failed, keeping .ts file: {output_path}", "error")
+                else:
+                    print_status(f"Keeping .ts file: {output_path}", "info")
+                    save_path = output_path
+            else:
+                print_status("moviepy not installed, keeping .ts file", "warning")
+                save_path = output_path
+        else:
+            print_status(f"Video successfully saved to: {save_path}", "success")
+        
+        print_status("Download complete! Enjoy watching! 🎉", "success")
         return 0
         
     except KeyboardInterrupt:
