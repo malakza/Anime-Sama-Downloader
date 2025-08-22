@@ -147,11 +147,11 @@ https://anime-sama.fr/  # Just homepage
 |:--------:|:------:|:-----------:|:------|
 | 📹 **SendVid** | ![Working](https://img.shields.io/badge/Status-✅_Working-brightgreen) | 🔄 Good | Primary recommended source |
 | 🎬 **Sibnet** | ![Working](https://img.shields.io/badge/Status-✅_Working-brightgreen) | 🔄 Good | Reliable backup source |
+| 🎬 **ONEUPLOAD** | ![Working](https://img.shields.io/badge/Status-✅_Working-brightgreen) | 🔄 Good | Download .ts file then make them into an mp4 back. |
 | 🚫 **Vidmoly** | ![Deprecated](https://img.shields.io/badge/Status-❌_Deprecated-red) | ❌ None | No longer supported, domain changed. |
 | 🚫 **MYVI** | ![Deprecated](https://img.shields.io/badge/Status-❌_Deprecated-red) | ❌ None | Scam website, only redirect to advertisement. |
 | 🤔 **VK.com** | ![Deprecated](https://img.shields.io/badge/Status-❌_Unsupported-red) | ❌ None | Could try, but did not find any working URL. |
 | 🤔 **MOVEARNPRE** | ![Deprecated](https://img.shields.io/badge/Status-❌_Unsupported-red) | ❌ None | Use a boring chunk way of giving video informations. |
-| 🤔 **ONEUPLOAD** | ![Deprecated](https://img.shields.io/badge/Status-❌_Unsupported-red) | ❌ None | Use a boring chunk way of giving video informations. |
 
 An javascript extension will be added to be able to download them (Movearnpre, oneupload and those other chunky.)
 
