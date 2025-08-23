@@ -47,7 +47,7 @@ def print_tutorial():
 └─ 🎮 Follow the interactive prompts
 
 {Colors.WARNING}{Colors.BOLD}📌 IMPORTANT NOTES:{Colors.ENDC}
-├─ ✅ Supported sources: sendvid.com, video.sibnet.ru, oneupload.net/.to, vidmoly.net/.to, movearnpre.com
+├─ ✅ Supported sources: See inside of the github README
 ├─ ❌ Other sources are not supported (see GitHub for details)
 ├─ 🔗 URL must be the complete path including season/language
 └─ 📁 Videos save to ./videos/ by default (customizable)
