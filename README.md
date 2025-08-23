@@ -1,5 +1,5 @@
 <div align="center">
-
+  
 # 🎌 Anime-Sama Video Downloader
 
 <img src="https://img.shields.io/badge/Python-3.6+-blue.svg?style=for-the-badge&logo=python" alt="Python Version">
@@ -13,7 +13,6 @@
 *Questions? Unworking urls? Open an issue, will be added fastly (hopefully)*
 
 ![Website Support](https://img.shields.io/badge/Website%20Support-100%25-brightgreen)
-
 
 ## ✨ Features
 
