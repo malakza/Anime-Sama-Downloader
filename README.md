@@ -25,7 +25,7 @@
 - 🌈 **Beautiful CLI Interface** with colors and emojis
 - 🔍 **Auto URL Validation** with helpful error messages
 - 📝 **Built-in Tutorial** for first-time users
-- ⚡ **Multi-threaded Downloads** for blazing fast performance
+- ⚡ **Multi-threaded Downloads ** for blazing fast performance
 </td>
 <td width="50%">
 
@@ -34,8 +34,8 @@
 - 🔄 **Smart Source Detection** (SendVid, Sibnet)
 - 📊 **Real-time Progress** with download speeds
 - 🛡️ **Robust Error Handling** with retry logic
+- 📺 **Multiple Episode Selection** with threads supports
 
-</td>
 </tr>
 </table>
 
