@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import time
 
-def download_video(video_url, save_path):
+def download_video(video_url, save_path, use_ts_threading=False, automatic_mp4=False, threaded_mp4=False):
     print_status(f"Starting download: {os.path.basename(save_path)}", "loading")
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
@@ -34,9 +34,13 @@ def download_video(video_url, save_path):
 
             print(f"\n{Colors.BOLD}{Colors.OKCYAN}Threaded Download Option{Colors.ENDC}")
             print_status("Threaded downloading is faster but should not be used on weak Wi-Fi.", "info")
-            use_threads = input(f"{Colors.BOLD}Use threaded download for faster performance? (y/n, default: n): {Colors.ENDC}").strip().lower()
-            use_threads = use_threads in ['y', 'yes', '1']
 
+            if use_ts_threading is None or use_ts_threading == False:
+                use_threads = input(f"{Colors.BOLD}Use threaded download for faster performance? (y/n, default: n): {Colors.ENDC}").strip().lower()
+                use_threads = use_threads in ['y', 'yes', '1']
+            else:
+                use_threads = use_ts_threading
+            
             if use_threads:
                 segment_data = []
                 
