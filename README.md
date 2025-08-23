@@ -12,6 +12,8 @@
 
 *Questions? Unworking urls? Open an issue, will be added fastly (hopefully)*
 
+![Website Support](https://img.shields.io/badge/Website%20Support-100%25-brightgreen)
+
 
 ## ✨ Features
 
