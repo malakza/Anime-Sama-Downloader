@@ -233,16 +233,16 @@ We welcome contributions! Here's how you can help:
 </div>
 
 ### 🐛 Found a Bug?
-1. Check existing [issues](https://github.com/sertrafurr/issues)
-2. Create a new issue with:
-   - 📝 Clear description
-   - 🔄 Steps to reproduce
-   - 💻 System information
+ Check existing [issues](https://github.com/sertrafurr/issues)
+ Create a new issue with:
+    📝 Clear description
+    🔄 Steps to reproduce
+    💻 System information
 
 ### 💡 Feature Request?
-1. Open a [discussion](https://github.com/sertrafurr/discussions)
-2. Explain your idea
-3. Community feedback welcome!
+ Open a [discussion](https://github.com/sertrafurr/discussions)
+ Explain your idea
+ Community feedback welcome!
 
 ---
 
