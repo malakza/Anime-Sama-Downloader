@@ -1,11 +1,10 @@
-
 import requests
 import re
 import os
 import sys
 from tqdm import tqdm
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 import time
 try:
     from moviepy.editor import VideoFileClip
@@ -29,7 +28,7 @@ def print_header():
 {Colors.HEADER}{Colors.BOLD}
 ╔══════════════════════════════════════════════════════════════╗
 ║                 ANIME-SAMA VIDEO DOWNLOADER                  ║
-║                       Enhanced CLI v2.3                      ║
+║                       Enhanced CLI v2.4                      ║
 ╚══════════════════════════════════════════════════════════════╝
 {Colors.ENDC}
 {Colors.OKCYAN}📺 Download anime episodes from anime-sama.fr easily!{Colors.ENDC}
@@ -62,7 +61,7 @@ def print_tutorial():
 └─ 🎮 Follow the interactive prompts
 
 {Colors.WARNING}{Colors.BOLD}📌 IMPORTANT NOTES:{Colors.ENDC}
-├─ ✅ Supported sources: sendvid.com, video.sibnet.ru, oneupload.net/.to, vidmoly.net/.to
+├─ ✅ Supported sources: sendvid.com, video.sibnet.ru, oneupload.net/.to, vidmoly.net/.to, movearnpre.com
 ├─ ❌ Other sources are not supported (see GitHub for details)
 ├─ 🔗 URL must be the complete path including season/language
 └─ 📁 Videos save to ./videos/ by default (customizable)
@@ -109,6 +108,7 @@ def fetch_page_content(url):
                   'https://video.sibnet.ru/' if 'video.sibnet.ru' in url else 
                   'https://oneupload.net/' if 'oneupload.net' in url else
                   'https://vidmoly.net/' if 'vidmoly.net' in url else
+                  'https://movearnpre.com/' if 'movearnpre.com' in url else
                   'https://oneupload.net/'
     }
     try:
@@ -176,10 +176,152 @@ def extract_vidmoly_video_source(html_content):
     print_status("Could not extract video source from Vidmoly", "warning")
     return None
 
-def parse_m3u8_content(m3u8_content):
+def extract_movearnpre_video_source(embed_url):
+    try:
+        response = requests.get(embed_url)
+        response.raise_for_status()
+        html_content = response.text
+
+        script_pattern = r'<script type=[\'"]text/javascript[\'"]>\s*eval\(function.*?\.split\(\'\|\'\)\)\)\s*</script>'
+        script_match = re.search(script_pattern, html_content, re.DOTALL)
+        
+        if not script_match:
+            print_status("Could not find the obfuscated JavaScript script in movearnpre", "warning")
+            return None
+
+        script_content = script_match.group(0)
+        split_pattern = r'\'([^\']*)\'\.split\(\'\|\'\)\)\)'
+        split_match = re.search(split_pattern, script_content)
+        
+        if not split_match:
+            print_status("Could not extract split data from movearnpre script", "warning")
+            return None
+
+        raw_split_data = split_match.group(1).split('|')
+        split_data = [item for item in raw_split_data if item.strip()]
+
+        timestamp = None
+        file_code = None
+        
+        try:
+            create_element_index = split_data.index('createElement')
+            if create_element_index + 1 < len(split_data):
+                timestamp = split_data[create_element_index + 1]
+            if create_element_index + 2 < len(split_data):
+                file_code = split_data[create_element_index + 2]
+        except ValueError:
+            timestamp = str(int(time.time()))
+            file_code_pattern = r"\$\.cookie\('file_id',\s*'(\d+)'"
+            file_code_match = re.search(file_code_pattern, html_content)
+            file_code = file_code_match.group(1) if file_code_match else '29309898'
+
+        if not timestamp or not timestamp.isdigit():
+            timestamp = str(int(time.time()))
+
+        if not file_code or not file_code.isdigit():
+            file_code = '29309898'
+
+        subdomain = None
+        for i, item in enumerate(reversed(split_data)):
+            if item and len(item) >= 10 and item.isalnum():
+                subdomain = item.lower()
+                break
+        
+        if not subdomain:
+            print_status("Could not find subdomain matching pattern in movearnpre", "warning")
+            return None
+
+        if len(split_data) >= 2:
+            domain = split_data[-2]
+            code = split_data[-3]
+        else:
+            domain = 'ovaltinecdn'
+
+        file_id = embed_url.split('/')[-1] + "_"
+
+        srv = None
+        try:
+            reload_key_index = split_data.index('reloadKey')
+            if reload_key_index + 2 < len(split_data):
+                srv = split_data[reload_key_index + 2]
+        except ValueError:
+            srv_pattern = r"\$\.cookie\('aff',\s*'([^']+)'"
+            srv_match = re.search(srv_pattern, html_content)
+            srv = srv_match.group(1) if srv_match else '39536'
+
+        if not srv or not srv.strip():
+            srv = '39536'
+
+        expiry = None
+        hash_value = None
+        
+        try:
+            m3u8_index = split_data.index('m3u8')
+            prev_integer_index = -1
+            for i in range(m3u8_index - 1, -1, -1):
+                if split_data[i].isdigit():
+                    prev_integer_index = i
+                    break
+            
+            if prev_integer_index == -1:
+                print_status("Could not find integer before 'm3u8' in movearnpre split data", "warning")
+                return None
+
+            hash_components = []
+            for i in range(prev_integer_index + 1, m3u8_index):
+                current_item = split_data[i]
+                hash_components.append(current_item)
+            
+            expiry = split_data[prev_integer_index]
+            
+            if not hash_components:
+                print_status("No hash components found between expiry and 'm3u8' in movearnpre", "warning")
+                return None
+            
+            hash_value = '-'.join(hash_components[::-1])
+            
+        except ValueError:
+            print_status("Could not find required elements in movearnpre split data", "warning")
+            return None
+
+        if not expiry or not expiry.isdigit():
+            expiry = str(int(time.time()) + 129600)
+
+        asn = None
+        try:
+            asn_index = split_data.index('asn')
+            if asn_index > 0:
+                asn = split_data[asn_index - 1]
+        except ValueError:
+            pass
+        
+        if not asn or not asn.strip():
+            asn = '3215'
+
+        full_subdomain = f"{subdomain}.{domain}"
+        constructed_url = (f"https://{full_subdomain}.com/hls2/01/{code}/{file_id},l,n,h,.urlset/master.m3u8"
+                          f"?t={hash_value}&s={timestamp}&e=129600&f={file_code}&srv={srv}"
+                          f"&i=0.4&sp=500&p1={srv}&p2={srv}&asn={asn}")
+
+        return constructed_url
+
+    except requests.RequestException as e:
+        print_status(f"Error fetching movearnpre URL: {str(e)}", "warning")
+        return None
+    except Exception as e:
+        print_status(f"Unexpected error in movearnpre extraction: {str(e)}", "warning")
+        return None
+
+def parse_m3u8_content(m3u8_content, base_url=None):
     streams = []
     lines = m3u8_content.splitlines()
     current_stream = None
+
+    if base_url:
+        parsed_url = urlparse(base_url)
+        base_path = parsed_url.path.rsplit('/', 1)[0] + '/'
+        base_url_without_file = f"{parsed_url.scheme}://{parsed_url.netloc}{base_path}"
+        query_params = parsed_url.query
 
     for line in lines:
         line = line.strip()
@@ -193,6 +335,33 @@ def parse_m3u8_content(m3u8_content):
             current_stream['url'] = line
             streams.append(current_stream)
             current_stream = None
+        elif line and not line.startswith('#') and current_stream and base_url:
+            if '?' in line:
+                full_url = base_url_without_file + line
+            else:
+                full_url = f"{base_url_without_file}{line}?{query_params}"
+            current_stream['url'] = full_url
+            streams.append(current_stream)
+            current_stream = None
+        elif line.startswith('#EXT-X-I-FRAME-STREAM-INF') and base_url:
+            iframe_info = {}
+            attributes = re.findall(r'(\w+)=([^,]+)', line)
+            for key, value in attributes:
+                if key == 'URI':
+                    uri_value = value.strip('"')
+                    if uri_value.startswith('http'):
+                        iframe_info['url'] = uri_value
+                    else:
+                        if '?' in uri_value:
+                            iframe_info['url'] = base_url_without_file + uri_value
+                        else:
+                            iframe_info['url'] = f"{base_url_without_file}{uri_value}?{query_params}"
+                else:
+                    iframe_info[key] = value.strip('"')
+            
+            if 'url' in iframe_info:
+                streams.append(iframe_info)
+
     return streams
 
 def parse_ts_segments(m3u8_content):
@@ -253,13 +422,11 @@ def fetch_video_source(url):
         url = url.replace('vidmoly.to', 'vidmoly.net')
         print_status("Converted vidmoly.to to vidmoly.net", "info")
     
-    html_content = fetch_page_content(url)
-    if not html_content:
-        return None
-
     if 'sendvid.com' in url:
+        html_content = fetch_page_content(url)
         return extract_sendvid_video_source(html_content)
     elif 'video.sibnet.ru' in url:
+        html_content = fetch_page_content(url)
         video_source = extract_sibnet_video_source(html_content)
         if video_source:
             print_status("Getting direct download link...", "loading")
@@ -267,6 +434,7 @@ def fetch_video_source(url):
         return None
     elif 'oneupload.net' in url or 'oneupload.to' in url:
         url = url.replace('oneupload.to', 'oneupload.net')
+        html_content = fetch_page_content(url)
         m3u8_url = extract_oneupload_video_source(html_content)
         if not m3u8_url:
             return None
@@ -286,6 +454,7 @@ def fetch_video_source(url):
             print_status(f"Failed to fetch M3U8 playlist: {str(e)}", "error")
             return None
     elif 'vidmoly.net' in url:
+        html_content = fetch_page_content(url)
         m3u8_url = extract_vidmoly_video_source(html_content)
         if not m3u8_url:
             return None
@@ -304,8 +473,30 @@ def fetch_video_source(url):
         except requests.RequestException as e:
             print_status(f"Failed to fetch M3U8 playlist: {str(e)}", "error")
             return None
+    elif 'movearnpre.com' in url:
+        m3u8_url = extract_movearnpre_video_source(url)
+        if not m3u8_url:
+            return None
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
+                'Referer': 'https://movearnpre.com/'
+            }
+            response = requests.get(m3u8_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            print_status("Parsing movearnpre M3U8 content...", "loading")
+            streams = parse_m3u8_content(response.text, m3u8_url)
+            if not streams:
+                print_status("No video streams found in movearnpre M3U8 playlist", "error")
+                return None
+            best_stream = max(streams, key=lambda x: int(x.get('BANDWIDTH', 0)))
+            print_status(f"Selected best movearnpre stream: {best_stream.get('BANDWIDTH', 'Unknown')} bps", "info")
+            return best_stream['url']
+        except requests.RequestException as e:
+            print_status(f"Failed to fetch movearnpre M3U8 playlist: {str(e)}", "error")
+            return None
     else:
-        print_status("Unsupported video source. Only sendvid.com, video.sibnet.ru, oneupload.net, and vidmoly.net are supported.", "error")
+        print_status("Unsupported video source. Only sendvid.com, video.sibnet.ru, oneupload.net, vidmoly.net, and movearnpre.com are supported.", "error")
         return None
 
 def download_video(video_url, save_path):
@@ -314,7 +505,8 @@ def download_video(video_url, save_path):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
         'Accept': 'video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-        'Referer': 'https://vidmoly.net/' if 'vidmoly.net' in video_url else
+        'Referer': 'https://movearnpre.com/' if 'movearnpre.com' in video_url or 'ovaltinecdn.com' in video_url else
+                  'https://vidmoly.net/' if 'vidmoly.net' in video_url else
                   'https://oneupload.net/' if 'oneupload.net' in video_url else 
                   'https://sendvid.com/' if 'sendvid.com' in video_url else 
                   'https://video.sibnet.ru/'
@@ -417,7 +609,10 @@ def print_episodes(episodes):
             if "vk.com" in url or "myvi.tv" in url:
                 print(f"{Colors.FAIL}  {i:2d}. Episode {i} - {url[:60]}... ❌ DEPRECATED{Colors.ENDC}")
             elif 'sendvid.com' in url:
+            
                 print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - SendVid ✅{Colors.ENDC}")
+            elif 'movearnpre.com' in url:
+                print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - Movearnpre ✅{Colors.ENDC}")
             elif 'video.sibnet.ru' in url:
                 print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - Sibnet ✅{Colors.ENDC}")
             elif 'oneupload.net' in url or 'oneupload.to' in url:
@@ -434,7 +629,7 @@ def get_player_choice(episodes):
     available_players = list(episodes.keys())
     for i, player in enumerate(available_players, 1):
         working_episodes = sum(1 for url in episodes[player] 
-                     if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' in url or 'oneupload.to' in url or 'vidmoly.net' in url or 'vidmoly.to' in url)
+                     if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' in url or 'oneupload.to' in url or 'vidmoly.net' in url or 'vidmoly.to' in url or 'movearnpre.com' in url)
         total_episodes = len(episodes[player])
         print(f"{Colors.OKCYAN}  {i}. {player} ({working_episodes}/{total_episodes} working episodes){Colors.ENDC}")
     
@@ -477,7 +672,7 @@ def get_episode_choice(episodes, player_choice):
     working_episodes = []
     
     for i, url in enumerate(episodes[player_choice], 1):
-        if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' in url or 'oneupload.to' in url or 'vidmoly.net' in url or 'vidmoly.to' in url:
+        if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' in url or 'oneupload.to' in url or 'vidmoly.net' in url or 'vidmoly.to' in url or 'movearnpre.com' in url:
             working_episodes.append(i)
             if 'sendvid.com' in url:
                 source_type = "SendVid"
@@ -487,6 +682,8 @@ def get_episode_choice(episodes, player_choice):
                 source_type = "OneUpload"
             elif 'vidmoly.net' in url or 'vidmoly.to' in url:
                 source_type = "Vidmoly"
+            elif 'movearnpre.com' in url:
+                source_type = "Movearnpre"
             print(f"{Colors.OKGREEN}  {i:2d}. Episode {i} - {source_type} ✅{Colors.ENDC}")
         else:
             print(f"{Colors.FAIL}  {i:2d}. Episode {i} - Deprecated ❌{Colors.ENDC}")
