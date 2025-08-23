@@ -1,4 +1,5 @@
 from utils.var import print_status, Colors
+import re
 from bs4 import BeautifulSoup
 import requests, time, re
 
@@ -58,11 +59,28 @@ def extract_vidmoly_video_source(html_content):
     print_status("Could not extract video source from Vidmoly", "warning")
     return None
 
+def resolve_placeholders_from_html(html_content):
+    js_blocks = re.findall(r'<script[^>]*>(.*?)</script>', html_content, re.DOTALL | re.IGNORECASE)
+    if not js_blocks:
+        return None
+    for js_code in js_blocks:
+        url_match = re.search(r'"1b":"([^"]*)"', js_code)
+        if not url_match:
+            continue
+        url_template = url_match.group(1)
+        pattern_match = re.search(r'/([a-zA-Z0-9]{2}),([^,]*(?:,[^,]*)*),\.([a-zA-Z0-9]+)', url_template)
+        if not pattern_match:
+            continue
+        placeholders_str = pattern_match.group(2)
+        return ',' + placeholders_str +","
+    return None
 def extract_movearnpre_video_source(embed_url):
     try:
         response = requests.get(embed_url)
         response.raise_for_status()
         html_content = response.text
+
+        placeholder = resolve_placeholders_from_html(html_content)
 
         script_pattern = r'<script type=[\'"]text/javascript[\'"]>\s*eval\(function.*?\.split\(\'\|\'\)\)\)\s*</script>'
         script_match = re.search(script_pattern, html_content, re.DOTALL)
@@ -197,7 +215,7 @@ def extract_movearnpre_video_source(embed_url):
             asn = '3215'
 
         full_subdomain = f"{subdomain}.{domain}"
-        constructed_url = (f"https://{full_subdomain}.com/hls2/01/{code}/{file_id},l,n,h,.urlset/master.m3u8"
+        constructed_url = (f"https://{full_subdomain}.com/hls2/01/{code}/{file_id}{placeholder}.urlset/master.m3u8"
                           f"?t={hash_value}&s={timestamp}&e=129600&f={file_code}&srv={srv}"
                           f"&i=0.4&sp=500&p1={srv}&p2={srv}&asn={asn}")
 
