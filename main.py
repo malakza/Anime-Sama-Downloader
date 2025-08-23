@@ -6,6 +6,7 @@ from tqdm import tqdm
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urljoin
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 try:
     from moviepy.editor import VideoFileClip
 except ImportError:
@@ -186,29 +187,49 @@ def extract_movearnpre_video_source(embed_url):
         script_match = re.search(script_pattern, html_content, re.DOTALL)
         
         if not script_match:
-            print_status("Could not find the obfuscated JavaScript script in movearnpre", "warning")
-            return None
+            return "Error: Could not find the obfuscated JavaScript script."
 
         script_content = script_match.group(0)
+
         split_pattern = r'\'([^\']*)\'\.split\(\'\|\'\)\)\)'
         split_match = re.search(split_pattern, script_content)
         
         if not split_match:
-            print_status("Could not extract split data from movearnpre script", "warning")
-            return None
+            return "Error: Could not extract split data from script."
 
         raw_split_data = split_match.group(1).split('|')
         split_data = [item for item in raw_split_data if item.strip()]
 
         timestamp = None
         file_code = None
-        
+
         try:
             create_element_index = split_data.index('createElement')
-            if create_element_index + 1 < len(split_data):
-                timestamp = split_data[create_element_index + 1]
-            if create_element_index + 2 < len(split_data):
-                file_code = split_data[create_element_index + 2]
+            start_index = max(0, create_element_index - 5)
+            end_index = min(len(split_data), create_element_index + 6)
+            after_values = [split_data[i] for i in range(create_element_index + 1, end_index)]
+            
+            if len(after_values) >= 2 and after_values[0].isdigit() and after_values[1].isdigit():
+                timestamp = after_values[0]
+                file_code = after_values[1]
+            else:
+                if len(after_values) >= 1 and after_values[0].isdigit():
+                    file_code = after_values[0]
+                else:
+                    file_code_pattern = r"\$\.cookie\('file_id',\s*'(\d+)'"
+                    file_code_match = re.search(file_code_pattern, html_content)
+                    file_code = file_code_match.group(1) if file_code_match else '29309898'
+                
+                current_time = int(time.time())
+                possible_timestamps = [str(current_time - i) for i in range(5)]
+                for value in split_data:
+                    if value in possible_timestamps:
+                        timestamp = value
+                        break
+            
+            if not timestamp:
+                timestamp = str(current_time)
+
         except ValueError:
             timestamp = str(int(time.time()))
             file_code_pattern = r"\$\.cookie\('file_id',\s*'(\d+)'"
@@ -222,20 +243,20 @@ def extract_movearnpre_video_source(embed_url):
             file_code = '29309898'
 
         subdomain = None
-        for i, item in enumerate(reversed(split_data)):
+        for item in reversed(split_data):
             if item and len(item) >= 10 and item.isalnum():
                 subdomain = item.lower()
                 break
         
         if not subdomain:
-            print_status("Could not find subdomain matching pattern in movearnpre", "warning")
-            return None
+            return "Error: Could not find subdomain matching pattern."
 
         if len(split_data) >= 2:
             domain = split_data[-2]
             code = split_data[-3]
         else:
             domain = 'ovaltinecdn'
+            code = ''
 
         file_id = embed_url.split('/')[-1] + "_"
 
@@ -264,28 +285,24 @@ def extract_movearnpre_video_source(embed_url):
                     break
             
             if prev_integer_index == -1:
-                print_status("Could not find integer before 'm3u8' in movearnpre split data", "warning")
-                return None
+                return "Error: Could not find integer before 'm3u8' in split data."
 
-            hash_components = []
-            for i in range(prev_integer_index + 1, m3u8_index):
-                current_item = split_data[i]
-                hash_components.append(current_item)
-            
             expiry = split_data[prev_integer_index]
             
+            if len(expiry) == 10 and expiry.isdigit():
+                timestamp = expiry
+            
+            hash_components = []
+            for i in range(prev_integer_index + 1, m3u8_index):
+                hash_components.append(split_data[i])
+            
             if not hash_components:
-                print_status("No hash components found between expiry and 'm3u8' in movearnpre", "warning")
-                return None
+                return "Error: No hash components found between expiry and 'm3u8'."
             
             hash_value = '-'.join(hash_components[::-1])
             
         except ValueError:
-            print_status("Could not find required elements in movearnpre split data", "warning")
-            return None
-
-        if not expiry or not expiry.isdigit():
-            expiry = str(int(time.time()) + 129600)
+            return "Error: Could not find required elements in split data."
 
         asn = None
         try:
@@ -293,7 +310,7 @@ def extract_movearnpre_video_source(embed_url):
             if asn_index > 0:
                 asn = split_data[asn_index - 1]
         except ValueError:
-            pass
+            asn = '3215'
         
         if not asn or not asn.strip():
             asn = '3215'
@@ -306,11 +323,9 @@ def extract_movearnpre_video_source(embed_url):
         return constructed_url
 
     except requests.RequestException as e:
-        print_status(f"Error fetching movearnpre URL: {str(e)}", "warning")
-        return None
+        return f"Error fetching URL: {str(e)}"
     except Exception as e:
-        print_status(f"Unexpected error in movearnpre extraction: {str(e)}", "warning")
-        return None
+        return f"Unexpected error: {str(e)}"
 
 def parse_m3u8_content(m3u8_content, base_url=None):
     streams = []
@@ -477,24 +492,31 @@ def fetch_video_source(url):
         m3u8_url = extract_movearnpre_video_source(url)
         if not m3u8_url:
             return None
-        try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
-                'Referer': 'https://movearnpre.com/'
-            }
-            response = requests.get(m3u8_url, headers=headers, timeout=10)
-            response.raise_for_status()
-            print_status("Parsing movearnpre M3U8 content...", "loading")
-            streams = parse_m3u8_content(response.text, m3u8_url)
-            if not streams:
-                print_status("No video streams found in movearnpre M3U8 playlist", "error")
-                return None
-            best_stream = max(streams, key=lambda x: int(x.get('BANDWIDTH', 0)))
-            print_status(f"Selected best movearnpre stream: {best_stream.get('BANDWIDTH', 'Unknown')} bps", "info")
-            return best_stream['url']
-        except requests.RequestException as e:
-            print_status(f"Failed to fetch movearnpre M3U8 playlist: {str(e)}", "error")
-            return None
+        
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
+                    'Referer': 'https://movearnpre.com/'
+                }
+                response = requests.get(m3u8_url, headers=headers, timeout=10)
+                response.raise_for_status()
+                print_status("Parsing movearnpre M3U8 content...", "loading")
+                streams = parse_m3u8_content(response.text, m3u8_url)
+                if not streams:
+                    print_status("No video streams found in movearnpre M3U8 playlist", "error")
+                    return None
+                best_stream = max(streams, key=lambda x: int(x.get('BANDWIDTH', 0)))
+                print_status(f"Selected best movearnpre stream: {best_stream.get('BANDWIDTH', 'Unknown')} bps", "info")
+                return best_stream['url']
+            except requests.RequestException as e:
+                if attempt < max_retries - 1:
+                    print_status(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...", "warning")
+                    continue
+                else:
+                    print_status("Sorry, either the service is not working or the algorithm to get the download link got unlucky. You could try to restart.", "error")
+                    return None
     else:
         print_status("Unsupported video source. Only sendvid.com, video.sibnet.ru, oneupload.net, vidmoly.net, and movearnpre.com are supported.", "error")
         return None
@@ -523,20 +545,61 @@ def download_video(video_url, save_path):
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             temp_ts_path = save_path.replace('.mp4', '.ts')
             random_string = os.path.basename(save_path).replace('.mp4', '.ts')
-            with open(temp_ts_path, 'wb') as f:
-                for i, segment_url in enumerate(tqdm(segments, desc=f"📥 {random_string}", unit="segment")):
+
+            print(f"\n{Colors.BOLD}{Colors.OKCYAN}Threaded Download Option{Colors.ENDC}")
+            print_status("Threaded downloading is faster but should not be used on weak Wi-Fi.", "info")
+            use_threads = input(f"{Colors.BOLD}Use threaded download for faster performance? (y/n, default: n): {Colors.ENDC}").strip().lower()
+            use_threads = use_threads in ['y', 'yes', '1']
+
+            if use_threads:
+                segment_data = []
+                
+                def download_segment(segment_url, index):
                     for attempt in range(3):
                         try:
                             seg_response = requests.get(segment_url, headers=headers, stream=True, timeout=10)
                             seg_response.raise_for_status()
-                            f.write(seg_response.content)
-                            break
+                            return index, seg_response.content
                         except requests.RequestException as e:
                             if attempt < 2:
                                 time.sleep(2)
                             else:
-                                print_status(f"Failed to download segment {i+1}: {str(e)}", "error")
+                                print_status(f"Failed to download segment {index+1}: {str(e)}", "error")
+                                return index, None
+                    return index, None
+
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    future_to_segment = {executor.submit(download_segment, url, i): i for i, url in enumerate(segments)}
+                    with tqdm(total=len(segments), desc=f"📥 {random_string}", unit="segment") as pbar:
+                        for future in as_completed(future_to_segment):
+                            index, content = future.result()
+                            if content is None:
+                                print_status(f"Aborting download due to failure in segment {index+1}", "error")
                                 return False, None
+                            segment_data.append((index, content))
+                            pbar.update(1)
+
+                segment_data.sort(key=lambda x: x[0])
+                
+                with open(temp_ts_path, 'wb') as f:
+                    for _, content in segment_data:
+                        f.write(content)
+            else:
+                with open(temp_ts_path, 'wb') as f:
+                    for i, segment_url in enumerate(tqdm(segments, desc=f"📥 {random_string}", unit="segment")):
+                        for attempt in range(3):
+                            try:
+                                seg_response = requests.get(segment_url, headers=headers, stream=True, timeout=10)
+                                seg_response.raise_for_status()
+                                f.write(seg_response.content)
+                                break
+                            except requests.RequestException as e:
+                                if attempt < 2:
+                                    time.sleep(2)
+                                else:
+                                    print_status(f"Failed to download segment {i+1}: {str(e)}", "error")
+                                    return False, None
+            
             print_status(f"Combined {len(segments)} segments into {temp_ts_path}", "success")
             return True, temp_ts_path
         else:
@@ -567,6 +630,7 @@ def download_video(video_url, save_path):
     except Exception as e:
         print_status(f"Download failed: {str(e)}", "error")
         return False, None
+    
 
 def fetch_episodes(base_url):
     js_url = base_url.rstrip('/') + '/episodes.js'
