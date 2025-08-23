@@ -10,6 +10,8 @@
 
 *Enhanced with colorful interface, smart source detection, and robust error handling*
 
+*Questions? Unworking urls? Open an issue, will be added fastly (hopefully)*
+
 
 ## ✨ Features
 
