@@ -291,4 +291,4 @@ This project is licensed under the **GNU v3 License**
 
 </div>
 
-You wish for something a service to get removed/added, open an issue.
+You wish for something/a service to get removed/added, open an issue.
