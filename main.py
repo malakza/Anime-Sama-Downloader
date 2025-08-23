@@ -434,7 +434,7 @@ def get_player_choice(episodes):
     available_players = list(episodes.keys())
     for i, player in enumerate(available_players, 1):
         working_episodes = sum(1 for url in episodes[player] 
-                             if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' in url or 'vidmoly.net' in url or 'vidmoly.to' in url)
+                     if 'sendvid.com' in url or 'video.sibnet.ru' in url or 'oneupload.net' or 'oneupload.to' in url or 'vidmoly.net' in url or 'vidmoly.to' in url)
         total_episodes = len(episodes[player])
         print(f"{Colors.OKCYAN}  {i}. {player} ({working_episodes}/{total_episodes} working episodes){Colors.ENDC}")
     
