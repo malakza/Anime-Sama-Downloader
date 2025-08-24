@@ -59,22 +59,6 @@ def extract_vidmoly_video_source(html_content):
     print_status("Could not extract video source from Vidmoly", "warning")
     return None
 
-def resolve_placeholders_from_html(html_content):
-    js_blocks = re.findall(r'<script[^>]*>(.*?)</script>', html_content, re.DOTALL | re.IGNORECASE)
-    if not js_blocks:
-        return None
-    for js_code in js_blocks:
-        url_match = re.search(r'"1b":"([^"]*)"', js_code)
-        if not url_match:
-            continue
-        url_template = url_match.group(1)
-        pattern_match = re.search(r'/([a-zA-Z0-9]{2}),([^,]*(?:,[^,]*)*),\.([a-zA-Z0-9]+)', url_template)
-        if not pattern_match:
-            continue
-        placeholders_str = pattern_match.group(2)
-        return ',' + placeholders_str +","
-    return None
-
 def unpack_js_for_ts_file(packed_code, base, count, words):
     def to_base(num, base):
         if num == 0:
