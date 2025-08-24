@@ -74,154 +74,87 @@ def resolve_placeholders_from_html(html_content):
         placeholders_str = pattern_match.group(2)
         return ',' + placeholders_str +","
     return None
-def extract_movearnpre_video_source(embed_url):
+
+def unpack_js_for_ts_file(packed_code, base, count, words):
+    def to_base(num, base):
+        if num == 0:
+            return '0'
+        digits = []
+        while num:
+            digits.append(str(num % base) if num % base < 10 else chr(ord('a') + num % base - 10))
+            num //= base
+        return ''.join(reversed(digits))
+    
+    replacements = {}
+    for i in range(count):
+        key = to_base(i, base)
+        if i < len(words) and words[i]:
+            replacements[key] = words[i]
+    
+    unpacked = packed_code
+    for key, value in replacements.items():
+        pattern = r'\b' + re.escape(key) + r'\b'
+        unpacked = re.sub(pattern, value, unpacked)
+    
+    return unpacked
+
+def extract_packed_code_for_ts(html_content):
+    pattern = r"eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',(\d+),(\d+),'(.*?)'\.split\('\|'\)\)\)"
+    match = re.search(pattern, html_content, re.DOTALL)
+    if match:
+        packed_code = match.group(1)
+        base = int(match.group(2))
+        count = int(match.group(3))
+        words = match.group(4).split('|')
+        return packed_code, base, count, words
+    else:
+        print("No packed JavaScript code found.")
+        return None, None, None, None
+
+def fetch_html_for_ts(url):
     try:
-        response = requests.get(embed_url)
+        headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://movearnpre.com/',
+    'Connection': 'keep-alive',
+}
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
-        html_content = response.text
+        return response.text
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching the page: {e}")
+        return None
+    
+def extract_hls_url(unpacked_code):
 
-        placeholder = resolve_placeholders_from_html(html_content)
+    pattern = r'var\s+links\s*=\s*\{[^}]*"hls[^"]*"\s*:\s*"([^"]+)"'
+    match = re.search(pattern, unpacked_code)
+    if match:
+        return match.group(1)
+    
+    pattern2 = r'file\s*:\s*[^"]*"([^"]*\.m3u8[^"]*)"'
+    match2 = re.search(pattern2, unpacked_code)
+    if match2:
+        return match2.group(1)
+    
+    return None
 
-        script_pattern = r'<script type=[\'"]text/javascript[\'"]>\s*eval\(function.*?\.split\(\'\|\'\)\)\)\s*</script>'
-        script_match = re.search(script_pattern, html_content, re.DOTALL)
-        
-        if not script_match:
-            return "Error: Could not find the obfuscated JavaScript script."
-
-        script_content = script_match.group(0)
-
-        split_pattern = r'\'([^\']*)\'\.split\(\'\|\'\)\)\)'
-        split_match = re.search(split_pattern, script_content)
-        
-        if not split_match:
-            return "Error: Could not extract split data from script."
-
-        raw_split_data = split_match.group(1).split('|')
-        split_data = [item for item in raw_split_data if item.strip()]
-
-        timestamp = None
-        file_code = None
-
-        try:
-            create_element_index = split_data.index('createElement')
-            start_index = max(0, create_element_index - 5)
-            end_index = min(len(split_data), create_element_index + 6)
-            after_values = [split_data[i] for i in range(create_element_index + 1, end_index)]
-            
-            if len(after_values) >= 2 and after_values[0].isdigit() and after_values[1].isdigit():
-                timestamp = after_values[0]
-                file_code = after_values[1]
-            else:
-                if len(after_values) >= 1 and after_values[0].isdigit():
-                    file_code = after_values[0]
-                else:
-                    file_code_pattern = r"\$\.cookie\('file_id',\s*'(\d+)'"
-                    file_code_match = re.search(file_code_pattern, html_content)
-                    file_code = file_code_match.group(1) if file_code_match else '29309898'
-                
-                current_time = int(time.time())
-                possible_timestamps = [str(current_time - i) for i in range(5)]
-                for value in split_data:
-                    if value in possible_timestamps:
-                        timestamp = value
-                        break
-            
-            if not timestamp:
-                timestamp = str(current_time)
-
-        except ValueError:
-            timestamp = str(int(time.time()))
-            file_code_pattern = r"\$\.cookie\('file_id',\s*'(\d+)'"
-            file_code_match = re.search(file_code_pattern, html_content)
-            file_code = file_code_match.group(1) if file_code_match else '29309898'
-
-        if not timestamp or not timestamp.isdigit():
-            timestamp = str(int(time.time()))
-
-        if not file_code or not file_code.isdigit():
-            file_code = '29309898'
-
-        subdomain = None
-        for item in reversed(split_data):
-            if item and len(item) >= 10 and item.isalnum():
-                subdomain = item.lower()
-                break
-        
-        if not subdomain:
-            return "Error: Could not find subdomain matching pattern."
-
-        if len(split_data) >= 2:
-            domain = split_data[-2]
-            code = split_data[-3]
-        else:
-            domain = 'ovaltinecdn'
-            code = ''
-
-        file_id = embed_url.split('/')[-1] + "_"
-
-        srv = None
-        try:
-            reload_key_index = split_data.index('reloadKey')
-            if reload_key_index + 2 < len(split_data):
-                srv = split_data[reload_key_index + 2]
-        except ValueError:
-            srv_pattern = r"\$\.cookie\('aff',\s*'([^']+)'"
-            srv_match = re.search(srv_pattern, html_content)
-            srv = srv_match.group(1) if srv_match else '39536'
-
-        if not srv or not srv.strip():
-            srv = '39536'
-
-        expiry = None
-        hash_value = None
-        
-        try:
-            m3u8_index = split_data.index('m3u8')
-            prev_integer_index = -1
-            for i in range(m3u8_index - 1, -1, -1):
-                if split_data[i].isdigit():
-                    prev_integer_index = i
-                    break
-            
-            if prev_integer_index == -1:
-                return "Error: Could not find integer before 'm3u8' in split data."
-
-            expiry = split_data[prev_integer_index]
-            
-            if len(expiry) == 10 and expiry.isdigit():
-                timestamp = expiry
-            
-            hash_components = []
-            for i in range(prev_integer_index + 1, m3u8_index):
-                hash_components.append(split_data[i])
-            
-            if not hash_components:
-                return "Error: No hash components found between expiry and 'm3u8'."
-            
-            hash_value = '-'.join(hash_components[::-1])
-            
-        except ValueError:
-            return "Error: Could not find required elements in split data."
-
-        asn = None
-        try:
-            asn_index = split_data.index('asn')
-            if asn_index > 0:
-                asn = split_data[asn_index - 1]
-        except ValueError:
-            asn = '3215'
-        
-        if not asn or not asn.strip():
-            asn = '3215'
-
-        full_subdomain = f"{subdomain}.{domain}"
-        constructed_url = (f"https://{full_subdomain}.com/hls2/01/{code}/{file_id}{placeholder}.urlset/master.m3u8"
-                          f"?t={hash_value}&s={timestamp}&e=129600&f={file_code}&srv={srv}"
-                          f"&i=0.4&sp=500&p1={srv}&p2={srv}&asn={asn}")
-
-        return constructed_url
-
-    except requests.RequestException as e:
-        return f"Error fetching URL: {str(e)}"
-    except Exception as e:
-        return f"Unexpected error: {str(e)}"
+def extract_movearnpre_video_source(embed_url):
+    html_content = fetch_html_for_ts(embed_url)
+    if not html_content:
+        return
+    
+    packed_code, base, count, words = extract_packed_code_for_ts(html_content)
+    if not packed_code:
+        return
+    
+    unpacked_code = unpack_js_for_ts_file(packed_code, base, count, words)
+    
+    hls_url = extract_hls_url(unpacked_code)
+    if hls_url:
+        return hls_url
+    else:
+        print_status("No HLS URL found in the unpacked code", "error")
+        return None
