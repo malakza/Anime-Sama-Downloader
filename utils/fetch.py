@@ -1,5 +1,6 @@
 import re
 import requests
+import time
 from utils.var                   import print_status
 from utils.parsers               import parse_m3u8_content
 from utils.downloaders.extractor import extract_movearnpre_video_source, extract_sendvid_video_source, extract_sibnet_video_source, extract_oneupload_video_source, extract_vidmoly_video_source
@@ -170,6 +171,7 @@ def fetch_video_source(url):
                 except requests.RequestException as e:
                     if attempt < max_retries - 1:
                         print_status(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...", "warning")
+                        time.sleep(1)
                         continue
                     else:
                         print_status("Sorry, either the service is not working or the algorithm to get the download link got unlucky. You could try to restart. The video itself might be broken.", "error")
@@ -202,6 +204,7 @@ def fetch_video_source(url):
                     except requests.RequestException as e:
                         if attempt < max_retries - 1:
                             print_status(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...", "warning")
+                            time.sleep(1)
                             continue
                         else:
                             print_status("Sorry, either the service is not working or the algorithm to get the download link got unlucky. You could try to restart.", "error")
@@ -213,7 +216,6 @@ def fetch_video_source(url):
             print_status("Unsupported video source. Only some urls are supported. Look on the readme.", "error")
             return None
 
-    # Handle single URL or list of URLs
     if isinstance(url, str):
         return process_single_url(url)
     elif isinstance(url, list):
