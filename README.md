@@ -4,7 +4,7 @@
 
 <img src="https://img.shields.io/badge/Python-3.6+-blue.svg?style=for-the-badge&logo=python" alt="Python Version">
 <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=for-the-badge" alt="Platform">
-<img src="https://img.shields.io/badge/License-GNU_V3-green.svg?style=for-the-badge" alt="License">
+<img src="https://img.shields.io/badge/License-GPL_V3-green.svg?style=for-the-badge" alt="License">
 
 **🚀 A powerful, beautiful and simple CLI tool to download anime episodes from anime-sama.fr**
 
@@ -252,9 +252,9 @@ We welcome contributions! Here's how you can help:
 
 <div align="center">
 
-This project is licensed under the **GNU v3 License**
+This project is licensed under the **GPL v3 License**
 
-[![License: GNU](https://img.shields.io/badge/License-GNU_V3-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![License: GPL](https://img.shields.io/badge/License-GPL_V3-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 *Feel free to use, modify, and distribute!*
 
