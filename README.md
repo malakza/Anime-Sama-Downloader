@@ -25,7 +25,7 @@
 - 🌈 **Beautiful CLI Interface** with colors and emojis
 - 🔍 **Auto URL Validation** with helpful error messages
 - 📝 **Built-in Tutorial** for first-time users
-- ⚡ **Multi-threaded Downloads ** for blazing fast performance
+- ⚡ **Multi-threaded Downloads** for blazing fast performance
 </td>
 <td width="50%">
 
