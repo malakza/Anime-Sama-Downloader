@@ -31,7 +31,7 @@
 
 ### ⚡ **Powerful & Reliable**  
 - 🎪 **Multiple Player Support** (Player 1, 2, 3...)
-- 🔄 **Smart Source Detection** (SendVid, Sibnet)
+- 🔄 **Smart Source Detection** (SendVid, Sibnet and others)
 - 📊 **Real-time Progress** with download speeds
 - 🛡️ **Robust Error Handling** with retry logic
 - 📺 **Multiple Episode Selection** with threads supports
