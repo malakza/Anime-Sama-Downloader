@@ -3,7 +3,6 @@ try:
     from moviepy import VideoFileClip
 except ImportError:
     VideoFileClip = None
-import ffmpeg_downloader
 import subprocess
 import sys
 import shutil
