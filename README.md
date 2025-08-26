@@ -35,6 +35,7 @@
 - 📊 **Real-time Progress** with download speeds
 - 🛡️ **Robust Error Handling** with retry logic
 - 📺 **Multiple Episode Selection** with threads supports
+- 😊 **FFmpeg support** choose between 2 converters
 
 </tr>
 </table>
