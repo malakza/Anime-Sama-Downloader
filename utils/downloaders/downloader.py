@@ -7,18 +7,19 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 import time
 
-def download_video(video_url, save_path, use_ts_threading=False, automatic_mp4=False, threaded_mp4=False):
+def download_video(video_url, save_path, use_ts_threading=False, url='',automatic_mp4=False, threaded_mp4=False):
     print_status(f"Starting download: {os.path.basename(save_path)}", "loading")
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/108.0',
         'Accept': 'video/webm,video/mp4,video/*;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-        'Referer': 'https://movearnpre.com/' if 'movearnpre.com' in video_url or 'ovaltinecdn.com' in video_url else
-                  'https://vidmoly.net/' if 'vidmoly.net' in video_url else
-                  'https://oneupload.net/' if 'oneupload.net' in video_url else 
-                  'https://sendvid.com/' if 'sendvid.com' in video_url else 
+        'Referer': 'https://movearnpre.com/' if 'movearnpre.com' in url or 'ovaltinecdn.com' in url else
+                  'https://vidmoly.net/' if 'vidmoly.net'in url else 'https://vidmoly.net/' if 'vidmoly.to' in url else
+                  'https://oneupload.net/' if 'oneupload.net' in url else 
+                  'https://sendvid.com/' if 'sendvid.com' in url else 
                   'https://video.sibnet.ru/'
     }
+
     try:
         if 'm3u8' in video_url:
             response = requests.get(video_url, headers=headers, timeout=10)
@@ -32,10 +33,9 @@ def download_video(video_url, save_path, use_ts_threading=False, automatic_mp4=F
             temp_ts_path = save_path.replace('.mp4', '.ts')
             random_string = os.path.basename(save_path).replace('.mp4', '.ts')
 
-            print(f"\n{Colors.BOLD}{Colors.OKCYAN}Threaded Download Option{Colors.ENDC}")
-            print_status("Threaded downloading is faster but should not be used on weak Wi-Fi.", "info")
-
-            if use_ts_threading is None or use_ts_threading == False:
+            if automatic_mp4 is False and use_ts_threading is False:
+                print(f"\n{Colors.BOLD}{Colors.OKCYAN}Threaded Download Option{Colors.ENDC}")
+                print_status("Threaded downloading is faster but should not be used on weak Wi-Fi.", "info")
                 use_threads = input(f"{Colors.BOLD}Use threaded download for faster performance? (y/n, default: n): {Colors.ENDC}").strip().lower()
                 use_threads = use_threads in ['y', 'yes', '1']
             else:
