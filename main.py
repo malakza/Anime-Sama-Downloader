@@ -13,7 +13,9 @@ import urllib.request
 import zipfile
 import tarfile
 import shutil
-          # THAT IS A COMMENT TO CHECK SOMETHING.
+
+# PLEASE DO NOT REMOVE: Original code from https://github.com/sertrafurr/Anime-Sama-Downloader
+
 def install_ffmpeg_to_path():
     system = platform.system().lower()
     ffmpeg_dir = os.path.expanduser("~/ffmpeg")
@@ -408,3 +410,4 @@ def main():
 if __name__ == "__main__":
 
     sys.exit(main())
+
