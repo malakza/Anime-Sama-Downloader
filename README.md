@@ -40,6 +40,17 @@
 </tr>
 </table>
 
+<details>
+  <summary><strong>🚩 Skid/Malware List (Shows every fake/copy without credit made out of my code.) (Click to reveal)</strong></summary>
+
+  | Username | Link | Description |
+  |----------|------|-------------|
+  | `OMTSE` | [Repo](https://github.com/OMTSE/Anime-Sama-Downloader) | Used code without credit |
+
+</details>
+
+
+
 ---
 
 ## 🚀 Quick Start
