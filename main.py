@@ -13,7 +13,7 @@ import urllib.request
 import zipfile
 import tarfile
 import shutil
-
+          # THAT IS A COMMENT TO CHECK SOMETHING.
 def install_ffmpeg_to_path():
     system = platform.system().lower()
     ffmpeg_dir = os.path.expanduser("~/ffmpeg")
@@ -406,4 +406,5 @@ def main():
         print_status(f"Fatal error: {str(e)}", "error")
         return 1
 if __name__ == "__main__":
+
     sys.exit(main())
