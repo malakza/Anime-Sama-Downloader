@@ -29,7 +29,7 @@ def check_ffmpeg_installed():
 def install_ffmpeg_with_winget():
     system = platform.system().lower()
     if system != "windows":
-        raise OSError("This script only supports Windows for now.")
+        raise OSError("This script only supports Windows for now. Check https://ffmpeg.org/download.html for installation instructions for your OS.")
 
     print("Installing FFmpeg using winget...")
     try:
