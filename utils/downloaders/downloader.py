@@ -17,6 +17,7 @@ def download_video(video_url, save_path, use_ts_threading=False, url='',automati
                   'https://vidmoly.net/' if 'vidmoly.net'in url else 'https://vidmoly.net/' if 'vidmoly.to' in url else
                   'https://oneupload.net/' if 'oneupload.net' in url else 
                   'https://sendvid.com/' if 'sendvid.com' in url else 
+                  'https://mivalyo.com/' if 'mivalyo.com' in url else
                   'https://video.sibnet.ru/'
     }
 

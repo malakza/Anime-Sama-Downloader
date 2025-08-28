@@ -16,63 +16,28 @@ import shutil
 
 # PLEASE DO NOT REMOVE: Original code from https://github.com/sertrafurr/Anime-Sama-Downloader
 
-def install_ffmpeg_to_path():
-    system = platform.system().lower()
-    ffmpeg_dir = os.path.expanduser("~/ffmpeg")
-    bin_dir = os.path.join(ffmpeg_dir, "bin")
-
-    if not os.path.exists(ffmpeg_dir):
-        os.makedirs(ffmpeg_dir)
-
-    if system == "windows":
-        url = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip"
-        download_path = os.path.join(ffmpeg_dir, "ffmpeg.zip")
-    elif system == "darwin":
-        url = "https://evermeet.cx/ffmpeg/getrelease/zip"
-        download_path = os.path.join(ffmpeg_dir, "ffmpeg.zip")
-    elif system == "linux":
-        url = "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
-        download_path = os.path.join(ffmpeg_dir, "ffmpeg.tar.xz")
-    else:
-        raise OSError("Unsupported OS")
-
-    print(f"Downloading FFmpeg from {url}...")
-    urllib.request.urlretrieve(url, download_path)
-
-    print("Extracting FFmpeg...")
-    if system in ["windows", "darwin"]:
-        with zipfile.ZipFile(download_path, 'r') as zip_ref:
-            zip_ref.extractall(ffmpeg_dir)
-    elif system == "linux":
-        with tarfile.open(download_path, 'r:xz') as tar_ref:
-            tar_ref.extractall(ffmpeg_dir)
-
-    for root, _, files in os.walk(ffmpeg_dir):
-        if "ffmpeg" in files or "ffmpeg.exe" in files:
-            bin_dir = root
-            break
-    else:
-        raise FileNotFoundError("FFmpeg binary not found in extracted files")
-
-    if system == "windows":
-        current_path = os.environ.get("PATH", "")
-        if bin_dir not in current_path:
-            subprocess.run(['setx', 'PATH', f"{current_path};{bin_dir}"], check=True)
-            print("FFmpeg added to user PATH. Restart your terminal or system to apply.")
-    else:
-        shell_config = os.path.expanduser("~/.bashrc")
-        if system == "darwin":
-            shell_config = os.path.expanduser("~/.zshrc")
-        with open(shell_config, "a") as f:
-            f.write(f'\nexport PATH="$PATH:{bin_dir}"\n')
-        print(f"FFmpeg added to PATH in {shell_config}. Run 'source {shell_config}' to apply.")
-
+def check_ffmpeg_installed():
     try:
-        subprocess.run(["ffmpeg", "-version"], check=True, capture_output=True)
-        print("FFmpeg is now accessible from the command line!")
-    except subprocess.CalledProcessError:
-        print("FFmpeg installed but not accessible yet. Restart your terminal or system.")
+        result = subprocess.run(["ffmpeg", "-version"], check=True, capture_output=True, text=True)
+        print(f"FFmpeg is installed: {result.stdout.splitlines()[0]}")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("FFmpeg is not detected in PATH.")
+        return False
 
+
+def install_ffmpeg_with_winget():
+    system = platform.system().lower()
+    if system != "windows":
+        raise OSError("This script only supports Windows for now.")
+
+    print("Installing FFmpeg using winget...")
+    try:
+        subprocess.run(["winget", "install", "ffmpeg", "--accept-source-agreements", "--accept-package-agreements"], check=True)
+        print("FFmpeg installed successfully via winget.")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to install FFmpeg via winget: {e}")
+        
 def package_check(ask_install=False, first_run=False):
     missing_packages = []
 
@@ -251,6 +216,30 @@ def download_episode(episode_num, url, video_source, anime_name, save_dir, use_t
         print_status(f"Episode {episode_num} successfully saved to: {save_path}", "success")
         return True, save_path
 def main():
+    if not check_ffmpeg_installed():
+
+        print("❌ FFmpeg is not installed.")
+        response = input("ℹ️ Would you like to install FFmpeg using winget? (If not you will use moviepy (Slower)) (y/n): ").strip().lower()
+        if response not in ['y', 'yes', '1']:
+                print("⚠️ FFmpeg is required for video processing. Falling back to moviepy (slower).")
+                
+        else:
+            install_ffmpeg_with_winget()
+
+            if check_ffmpeg_installed():
+                try:
+                    cmd = ["ffmpeg", "--version"]
+                    subprocess.run(cmd, check=True)
+                    print("Check command!")
+                except subprocess.CalledProcessError as e:
+                    print(f"Failed to run FFmpeg command: {e}")
+            else:
+                    print("❌ FFmpeg installed but not accessible yet.")
+                    print("ℹ️ Please restart your terminal or system to apply PATH changes and try again.")
+                    input("Press Enter to quit, YOU MUST CLOSE THE TERMINAL!...")
+                    quit()
+
+
     try:
         print_header()
         
@@ -344,19 +333,9 @@ def main():
                     if ffmpeg_or_moviepy in ['1', 'ffmpeg', '']:
                         pre_selected_tool = 'ffmpeg'
                         if not check_ffmpeg_installed():
-                            print_status("ffmpeg is not installed.", "error")
-                            consent = input("Do you want to install ffmpeg and add it to path? (y/n): ").lower()
-                            if consent == 'y':
-                                try:
-                                    install_ffmpeg_to_path()
-                                except Exception as e:
-                                    print_status(f"Failed to install ffmpeg: {str(e)}", "error")
-                                    automatic_mp4 = False
-                                    break
-
-                            else:
-                                print_status("You cannot use ffmpeg for conversion.", "warning")
-                                continue
+                            print_status("ffmpeg is not installed. Fallback to moviepy", "error")
+                            pre_selected_tool = 'moviepy'
+                            break
                         break
                     elif ffmpeg_or_moviepy in ['2', 'moviepy']:
                         pre_selected_tool = 'moviepy'
@@ -408,6 +387,4 @@ def main():
         print_status(f"Fatal error: {str(e)}", "error")
         return 1
 if __name__ == "__main__":
-
     sys.exit(main())
-

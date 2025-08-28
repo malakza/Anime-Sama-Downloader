@@ -101,7 +101,7 @@ def fetch_html_for_ts(url):
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
     'Accept-Language': 'en-US,en;q=0.9',
-    'Referer': 'https://movearnpre.com/',
+    'Referer': url.split('/embed/')[0],
     'Connection': 'keep-alive',
 }
         response = requests.get(url, headers=headers)
@@ -142,3 +142,5 @@ def extract_movearnpre_video_source(embed_url):
     else:
         print_status("No HLS URL found in the unpacked code", "error")
         return None
+    
+
