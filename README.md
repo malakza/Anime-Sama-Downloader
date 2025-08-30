@@ -12,6 +12,8 @@
 
 *Questions? Unworking urls? Open an issue, will be added fastly (hopefully)*
 
+### 🌟 Star this repo if it helped you!
+
 ![Website Support](https://img.shields.io/badge/Website%20Support-100%25-brightgreen)
 
 ### Scans support ? 5 stars and it will be added !
