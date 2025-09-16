@@ -159,13 +159,17 @@ def get_save_directory():
         return default_dir
 
 def validate_anime_sama_url(url):
-    if not url.startswith("https://anime-sama.fr/catalogue/"):
-        return False, "URL must start with https://anime-sama.fr/catalogue/"
-    
-    if not url.rstrip('/').count('/') >= 5:
-        return False, "URL must include anime name, season, and language (e.g., /catalogue/anime/saison1/vostfr/)"
-    
-    return True, ""
+    pattern = re.compile(
+        r'^https://anime-sama\.(?:fr|org)/catalogue/[^/]+/saison\d+/(?:vostfr|vf|vo)/?$', re.IGNORECASE
+    )
+    if pattern.match(url):
+        return True, ""
+    else:
+        return False, (
+            "Invalid URL. Format should be:\n"
+            "  https://anime-sama.fr/catalogue/<anime-name>/saison<NUMBER>/<language>/\n"
+            "Where <language> is VOSTFR, VF, VO, etc. Also .org domain is accepted."
+        )
 
 
 def download_episode(episode_num, url, video_source, anime_name, save_dir, use_ts_threading=False, automatic_mp4=False, pre_selected_tool=None):
@@ -387,4 +391,5 @@ def main():
         print_status(f"Fatal error: {str(e)}", "error")
         return 1
 if __name__ == "__main__":
+
     sys.exit(main())
